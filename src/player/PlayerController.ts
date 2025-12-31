@@ -13,6 +13,8 @@ export class PlayerController {
   private pitch: number = 0; // Vertical rotation
   private yaw: number = 0; // Horizontal rotation
   private mouseSensitivity: number = 0.002;
+  private jumpAnimationTime: number = 0;
+  private wasGrounded: boolean = true;
 
   constructor(
     camera: THREE.PerspectiveCamera,
@@ -78,11 +80,21 @@ export class PlayerController {
     // Apply gravity
     this.velocity.y += GAME_CONFIG.PLAYER.GRAVITY * deltaTime;
 
-    // Handle jumping
+    // Handle jumping with goofy animation
     if (this.inputManager.isKeyPressed(' ') && this.isGrounded) {
       this.velocity.y = GAME_CONFIG.PLAYER.JUMP_FORCE;
       this.isGrounded = false;
+      this.jumpAnimationTime = 0; // Reset animation
     }
+
+    // Update jump animation
+    if (!this.isGrounded) {
+      this.jumpAnimationTime += deltaTime;
+    } else if (!this.wasGrounded) {
+      // Just landed - bounce effect
+      this.jumpAnimationTime = -0.2; // Negative for landing bounce
+    }
+    this.wasGrounded = this.isGrounded;
 
     // Update velocity
     this.velocity.x = moveDirection.x;
@@ -126,9 +138,26 @@ export class PlayerController {
       this.isGrounded = false;
     }
 
-    // Update camera position
+    // Update camera position with bouncy jump animation
+    let cameraYOffset = GAME_CONFIG.PLAYER.HEIGHT / 2 - 0.2; // Base eye level
+    
+    // Add bouncy jump effect
+    if (this.jumpAnimationTime > 0) {
+      // Jumping up - camera goes up
+      const jumpPhase = Math.min(this.jumpAnimationTime * 2, 1);
+      cameraYOffset += Math.sin(jumpPhase * Math.PI) * 0.5;
+    } else if (this.jumpAnimationTime < 0) {
+      // Landing - bounce down then up
+      const landPhase = Math.abs(this.jumpAnimationTime) * 5;
+      cameraYOffset -= Math.sin(landPhase * Math.PI) * 0.3;
+      this.jumpAnimationTime += deltaTime * 2;
+      if (this.jumpAnimationTime >= 0) {
+        this.jumpAnimationTime = 0;
+      }
+    }
+    
     this.camera.position.copy(this.position);
-    this.camera.position.y += GAME_CONFIG.PLAYER.HEIGHT / 2 - 0.2; // Eye level
+    this.camera.position.y += cameraYOffset;
 
     // Apply friction
     this.velocity.x *= 0.9;

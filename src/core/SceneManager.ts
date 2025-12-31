@@ -11,10 +11,10 @@ export class SceneManager {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     
-    // Scene
+    // Scene - Beach setting
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); // Sky blue
-    this.scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+    this.scene.background = new THREE.Color(0x87CEEB); // Bright sky blue for beach
+    this.scene.fog = new THREE.Fog(0x87CEEB, 20, 80); // Lighter fog for beach
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
@@ -32,23 +32,27 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Use cheaper shadow type for better performance (will be overridden by directional light)
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    // Lighting
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lighting - Beach setting (bright, warm sunlight)
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // Brighter ambient for beach
     this.scene.add(this.ambientLight);
 
-    this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    this.directionalLight.position.set(10, 20, 10);
+    this.directionalLight = new THREE.DirectionalLight(0xfff8dc, 0.9); // Warm sunlight color
+    this.directionalLight.position.set(15, 25, 10); // Higher sun position
     this.directionalLight.castShadow = true;
-    this.directionalLight.shadow.mapSize.width = 2048;
-    this.directionalLight.shadow.mapSize.height = 2048;
+    // Reduced shadow map resolution for better performance
+    this.directionalLight.shadow.mapSize.width = 1024;
+    this.directionalLight.shadow.mapSize.height = 1024;
     this.directionalLight.shadow.camera.near = 0.5;
     this.directionalLight.shadow.camera.far = 50;
     this.directionalLight.shadow.camera.left = -20;
     this.directionalLight.shadow.camera.right = 20;
     this.directionalLight.shadow.camera.top = 20;
     this.directionalLight.shadow.camera.bottom = -20;
+    // Use cheaper shadow type for better performance
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.scene.add(this.directionalLight);
 
     // Handle window resize

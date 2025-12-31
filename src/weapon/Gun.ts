@@ -12,6 +12,8 @@ export class Gun extends Weapon {
   private ammo: number;
   private maxAmmo: number;
   private collisionDetector: CollisionDetector;
+  private recoilAmount: number = 0;
+  private recoilTime: number = 0;
 
   constructor(
     camera: THREE.PerspectiveCamera,
@@ -28,8 +30,18 @@ export class Gun extends Weapon {
     this.collisionDetector = collisionDetector;
   }
 
-  public update(_deltaTime: number, _enemies: Enemy[], _playerPosition: THREE.Vector3): Bullet | null {
+  public update(deltaTime: number, _enemies: Enemy[], _playerPosition: THREE.Vector3): Bullet | null {
     const currentTime = Date.now();
+
+    // Update recoil animation
+    if (this.recoilTime > 0) {
+      this.recoilTime -= deltaTime;
+      this.recoilAmount = Math.max(0, this.recoilTime / 0.1); // Recoil over 0.1 seconds
+      
+      // Apply exaggerated camera recoil (pitch up)
+      const recoilPitch = this.recoilAmount * 0.3 * deltaTime * 10;
+      this.camera.rotation.x += recoilPitch;
+    }
 
     // Handle shooting
     if (
@@ -41,6 +53,9 @@ export class Gun extends Weapon {
       if (bullet) {
         this.ammo--;
         this.lastShotTime = currentTime;
+        // Start recoil animation
+        this.recoilTime = 0.1;
+        this.recoilAmount = 1;
         return bullet;
       }
     }

@@ -143,7 +143,14 @@ export class Game {
       const bullet = this.bullets[i];
       bullet.update(deltaTime);
 
-      // Check collisions based on bullet type
+      // Skip collision checks if bullet already hit world (from update method)
+      if (bullet.isExpired()) {
+        bullet.dispose();
+        this.bullets.splice(i, 1);
+        continue;
+      }
+
+      // Check collisions based on bullet type (only if bullet hasn't hit world)
       let bulletHit = false;
       
       if (bullet.getIsPlayerBullet()) {
@@ -181,12 +188,6 @@ export class Game {
         bullet.dispose();
         this.bullets.splice(i, 1);
         continue;
-      }
-
-      // Remove expired bullets
-      if (bullet.isExpired()) {
-        bullet.dispose();
-        this.bullets.splice(i, 1);
       }
     }
 

@@ -15,6 +15,7 @@ export class Enemy {
   private scene: THREE.Scene;
   private distanceToPlayer: number = Infinity;
   private lastShotTime: number = 0;
+  private animationTime: number = 0;
 
   constructor(
     startPosition: THREE.Vector3,
@@ -91,7 +92,7 @@ export class Enemy {
   public update(deltaTime: number, playerPosition: THREE.Vector3): Bullet | null {
     if (this.health.isDead()) {
       this.ai.setState('dead');
-      return;
+      return null;
     }
 
     this.distanceToPlayer = this.position.distanceTo(playerPosition);
@@ -140,15 +141,47 @@ export class Enemy {
     );
     this.position.y = groundHeight + GAME_CONFIG.ENEMY.SIZE;
 
-    // Update mesh position
-    this.mesh.position.copy(this.position);
+    // Update animation time
+    this.animationTime += deltaTime * 10; // Speed up animation
 
-    // Face player or movement direction
+    // Goofy bouncy walking animation
+    const isMoving = this.velocity.length() > 0.1;
+    let bounceOffset = 0;
+    let wobbleRotation = 0;
+    let scaleMultiplier = 1;
+
+    if (isMoving) {
+      // Bouncy vertical movement
+      bounceOffset = Math.sin(this.animationTime) * 0.3;
+      
+      // Wobble rotation (slight side-to-side)
+      wobbleRotation = Math.sin(this.animationTime * 0.7) * 0.2;
+      
+      // Squash and stretch effect
+      const bouncePhase = Math.sin(this.animationTime);
+      scaleMultiplier = 1 + bouncePhase * 0.15; // Squash/stretch
+    }
+
+    // Attack animation (exaggerated)
+    if (aiResult.state === 'attack' && aiResult.isAttacking) {
+      // Big scale up and rotation
+      scaleMultiplier = 1.3;
+      wobbleRotation += Math.sin(this.animationTime * 5) * 0.5;
+    }
+
+    // Apply animations
+    this.mesh.position.copy(this.position);
+    this.mesh.position.y += bounceOffset;
+
+    // Face player or movement direction with wobble
     const directionToPlayer = new THREE.Vector3()
       .subVectors(playerPosition, this.position)
       .normalize();
     const angle = Math.atan2(directionToPlayer.x, directionToPlayer.z);
-    this.mesh.rotation.y = angle;
+    this.mesh.rotation.y = angle + wobbleRotation;
+
+    // Apply scale animation
+    this.mesh.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
 
     // Try to shoot
     return this.tryShoot(playerPosition);

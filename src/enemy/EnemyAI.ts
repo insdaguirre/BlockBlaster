@@ -97,6 +97,9 @@ export class EnemyAI {
       }
     }
 
+    if (!this.patrolTarget) {
+      return new THREE.Vector3();
+    }
     const direction = new THREE.Vector3()
       .subVectors(this.patrolTarget, position)
       .normalize();

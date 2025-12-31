@@ -39,7 +39,7 @@ export class Bullet {
     });
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.position.copy(this.position);
-    this.mesh.castShadow = true;
+    this.mesh.castShadow = false; // Disable shadows for bullets to improve performance
     scene.add(this.mesh);
 
     // Add point light for glow effect
@@ -62,31 +62,42 @@ export class Bullet {
       return;
     }
 
-    // Move bullet
+    // Step-based movement to prevent tunneling through walls
     const movement = this.velocity.clone().multiplyScalar(deltaTime);
-    const newPosition = this.position.clone().add(movement);
-
-    // Check collision with world
+    const distance = movement.length();
+    const stepSize = 0.2; // Maximum step size for collision checking
+    const steps = Math.max(1, Math.ceil(distance / stepSize));
+    const stepMovement = movement.divideScalar(steps);
     const bulletSize = new THREE.Vector3(0.2, 0.2, 0.2);
-    if (this.collisionDetector.checkCollision(newPosition, bulletSize)) {
-      this.hasHit = true;
-      return;
+
+    // Move in small steps, checking collision at each step
+    for (let step = 0; step < steps; step++) {
+      const testPosition = this.position.clone().add(stepMovement);
+
+      // Check collision with world at this step
+      if (this.collisionDetector.checkCollision(testPosition, bulletSize)) {
+        this.hasHit = true;
+        return;
+      }
+
+      // Check if bullet is out of bounds
+      const mapSize = GAME_CONFIG.WORLD.GROUND_SIZE;
+      const halfSize = mapSize / 2;
+      if (
+        Math.abs(testPosition.x) > halfSize ||
+        Math.abs(testPosition.z) > halfSize ||
+        testPosition.y < -5 ||
+        testPosition.y > 50
+      ) {
+        this.hasHit = true;
+        return;
+      }
+
+      // Move to this position
+      this.position.copy(testPosition);
     }
 
-    // Check if bullet is out of bounds
-    const mapSize = GAME_CONFIG.WORLD.GROUND_SIZE;
-    const halfSize = mapSize / 2;
-    if (
-      Math.abs(newPosition.x) > halfSize ||
-      Math.abs(newPosition.z) > halfSize ||
-      newPosition.y < -5 ||
-      newPosition.y > 50
-    ) {
-      this.hasHit = true;
-      return;
-    }
-
-    this.position.copy(newPosition);
+    // Update mesh position
     this.mesh.position.copy(this.position);
   }
 

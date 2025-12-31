@@ -49,6 +49,13 @@ export const GAME_CONFIG = {
     BLOCK_SIZE: 1,
     GROUND_SIZE: 150,
     GRID_SIZE: 150
+  },
+  PERFORMANCE: {
+    SHADOW_MAP_SIZE: 1024,
+    MAX_SHADOW_CASTERS: 100, // Limit number of objects that cast shadows
+    ENABLE_FOG: true,
+    FOG_NEAR: 10,
+    FOG_FAR: 50
   }
 };
 
