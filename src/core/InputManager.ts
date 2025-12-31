@@ -46,8 +46,12 @@ export class InputManager {
     // Mouse movement (only when pointer locked)
     document.addEventListener('mousemove', (e) => {
       if (this.inputState.isPointerLocked) {
-        this.inputState.mouseDelta.x += e.movementX || (e as any).mozMovementX || 0;
-        this.inputState.mouseDelta.y += e.movementY || (e as any).mozMovementY || 0;
+        const movementX = e.movementX || (e as any).mozMovementX || 0;
+        const movementY = e.movementY || (e as any).mozMovementY || 0;
+        // Cap mouse delta to prevent large jumps (smooth aim)
+        const maxDelta = 50; // Maximum pixels per frame
+        this.inputState.mouseDelta.x += Math.max(-maxDelta, Math.min(maxDelta, movementX));
+        this.inputState.mouseDelta.y += Math.max(-maxDelta, Math.min(maxDelta, movementY));
       }
     });
 

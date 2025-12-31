@@ -24,9 +24,6 @@ export class WorldGenerator {
     // Create hills
     this.createHills();
 
-    // Create titan head in water
-    this.createTitanHead();
-
     // Create spacecraft wreckage
     this.createSpacecraftWreckage();
 
@@ -100,71 +97,6 @@ export class WorldGenerator {
           }
         }
       }
-    }
-  }
-
-  private createTitanHead(): void {
-    // Titan head position in water (negative Z area)
-    const titanX = 0;
-    const titanZ = -40; // In water area
-    const baseY = -1; // Partially submerged
-
-    // Head structure - large block-based head
-    const headWidth = 8;
-    const headHeight = 12;
-    const headDepth = 8;
-
-    // Create head blocks
-    for (let x = -headWidth / 2; x < headWidth / 2; x += this.blockSize) {
-      for (let y = 0; y < headHeight; y += this.blockSize) {
-        for (let z = -headDepth / 2; z < headDepth / 2; z += this.blockSize) {
-          // Create face shape (simplified)
-          const distFromCenterX = Math.abs(x);
-          const distFromCenterZ = Math.abs(z);
-
-          // Skip inner blocks to create hollow structure (optional)
-          // Create face features
-          if (y > headHeight * 0.3 && y < headHeight * 0.7) {
-            // Eye area
-            if (distFromCenterX < 2 && distFromCenterZ < 1 && y > headHeight * 0.4 && y < headHeight * 0.6) {
-              const position = new THREE.Vector3(
-                titanX + x,
-                baseY + y + this.blockSize / 2,
-                titanZ + z
-              );
-              const block = Block.createBlock(position, 0x000000); // Black for eyes
-              this.scene.add(block);
-              this.collisionDetector.addBlock(block, position);
-              continue;
-            }
-          }
-
-          // Main head structure
-          if (distFromCenterX < headWidth / 2 && distFromCenterZ < headDepth / 2) {
-            const position = new THREE.Vector3(
-              titanX + x,
-              baseY + y + this.blockSize / 2,
-              titanZ + z
-            );
-            const block = Block.createBlock(position, 0x8B7355); // Skin tone
-            this.scene.add(block);
-            this.collisionDetector.addBlock(block, position);
-          }
-        }
-      }
-    }
-
-    // Add some detail blocks for features
-    // Nose
-    for (let y = headHeight * 0.5; y < headHeight * 0.7; y += this.blockSize) {
-      const position = new THREE.Vector3(
-        titanX,
-        baseY + y + this.blockSize / 2,
-        titanZ + headDepth / 2
-      );
-      const block = Block.createBlock(position, 0x6B5B4D);
-      this.scene.add(block);
-      this.collisionDetector.addBlock(block, position);
     }
   }
 

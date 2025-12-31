@@ -14,7 +14,7 @@ export class SceneManager {
     // Scene - Beach setting
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87CEEB); // Bright sky blue for beach
-    this.scene.fog = new THREE.Fog(0x87CEEB, 20, 80); // Lighter fog for beach
+    this.scene.fog = new THREE.Fog(0x87CEEB, 30, 60); // Reduced fog distance for performance
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(

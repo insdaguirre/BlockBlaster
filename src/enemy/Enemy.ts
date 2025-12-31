@@ -16,6 +16,7 @@ export class Enemy {
   private distanceToPlayer: number = Infinity;
   private lastShotTime: number = 0;
   private animationTime: number = 0;
+  private wasDamaged: boolean = false;
 
   constructor(
     startPosition: THREE.Vector3,
@@ -40,27 +41,65 @@ export class Enemy {
     const group = new THREE.Group();
     const size = GAME_CONFIG.ENEMY.SIZE;
 
-    // Body (main block)
+    // Body (main block) - Metallic silver
     const bodyGeometry = new THREE.BoxGeometry(size * 0.8, size * 1.2, size * 0.8);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xC0C0C0, // Silver
+      metalness: 0.9,
+      roughness: 0.3
+    });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = size * 0.6;
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
 
-    // Head
+    // Tech panel on chest
+    const panelGeometry = new THREE.BoxGeometry(size * 0.4, size * 0.3, size * 0.05);
+    const panelMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x00BFFF, // Blue tech
+      emissive: 0x00BFFF,
+      emissiveIntensity: 0.5,
+      metalness: 0.8
+    });
+    const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+    panel.position.set(0, size * 0.6, size * 0.42);
+    group.add(panel);
+
+    // Head - Dark metallic with glowing eyes
     const headGeometry = new THREE.BoxGeometry(size * 0.6, size * 0.6, size * 0.6);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
+    const headMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x505050, // Dark gray
+      metalness: 0.8,
+      roughness: 0.4
+    });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = size * 1.5;
     head.castShadow = true;
     head.receiveShadow = true;
     group.add(head);
 
-    // Arms
+    // Glowing eyes
+    const eyeGeometry = new THREE.BoxGeometry(size * 0.15, size * 0.15, size * 0.1);
+    const eyeMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFF6600, // Orange energy
+      emissive: 0xFF6600,
+      emissiveIntensity: 1.0
+    });
+    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    leftEye.position.set(-size * 0.15, size * 1.5, size * 0.31);
+    group.add(leftEye);
+    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    rightEye.position.set(size * 0.15, size * 1.5, size * 0.31);
+    group.add(rightEye);
+
+    // Arms - Metallic with exposed joints
     const armGeometry = new THREE.BoxGeometry(size * 0.3, size * 0.8, size * 0.3);
-    const armMaterial = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
+    const armMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x808080, // Medium gray
+      metalness: 0.9,
+      roughness: 0.3
+    });
     
     const leftArm = new THREE.Mesh(armGeometry, armMaterial);
     leftArm.position.set(-size * 0.6, size * 0.6, 0);
@@ -72,9 +111,29 @@ export class Enemy {
     rightArm.castShadow = true;
     group.add(rightArm);
 
-    // Legs
+    // Joint details (exposed mechanical parts)
+    const jointGeometry = new THREE.BoxGeometry(size * 0.2, size * 0.2, size * 0.2);
+    const jointMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x00BFFF, // Blue tech
+      emissive: 0x00BFFF,
+      emissiveIntensity: 0.3
+    });
+    
+    // Shoulder joints
+    const leftShoulder = new THREE.Mesh(jointGeometry, jointMaterial);
+    leftShoulder.position.set(-size * 0.6, size * 1.0, 0);
+    group.add(leftShoulder);
+    const rightShoulder = new THREE.Mesh(jointGeometry, jointMaterial);
+    rightShoulder.position.set(size * 0.6, size * 1.0, 0);
+    group.add(rightShoulder);
+
+    // Legs - Metallic
     const legGeometry = new THREE.BoxGeometry(size * 0.3, size * 0.6, size * 0.3);
-    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x990000 });
+    const legMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x808080, // Medium gray
+      metalness: 0.9,
+      roughness: 0.3
+    });
     
     const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
     leftLeg.position.set(-size * 0.25, size * 0.3, 0);
@@ -85,6 +144,14 @@ export class Enemy {
     rightLeg.position.set(size * 0.25, size * 0.3, 0);
     rightLeg.castShadow = true;
     group.add(rightLeg);
+
+    // Knee joints
+    const leftKnee = new THREE.Mesh(jointGeometry, jointMaterial);
+    leftKnee.position.set(-size * 0.25, size * 0.5, 0);
+    group.add(leftKnee);
+    const rightKnee = new THREE.Mesh(jointGeometry, jointMaterial);
+    rightKnee.position.set(size * 0.25, size * 0.5, 0);
+    group.add(rightKnee);
 
     return group;
   }
@@ -97,13 +164,17 @@ export class Enemy {
 
     this.distanceToPlayer = this.position.distanceTo(playerPosition);
 
-    // Get AI decision
+    // Get AI decision with health info
+    const healthPercentage = this.health.getHealth() / this.health.getMaxHealth();
     const aiResult = this.ai.update(
       this.position,
       playerPosition,
       this.collisionDetector,
-      deltaTime
+      deltaTime,
+      healthPercentage,
+      this.wasDamaged
     );
+    this.wasDamaged = false; // Reset damage flag
 
     // Move enemy
     const speed = aiResult.state === 'chase' 
@@ -141,8 +212,14 @@ export class Enemy {
     );
     this.position.y = groundHeight + GAME_CONFIG.ENEMY.SIZE;
 
-    // Update animation time
-    this.animationTime += deltaTime * 10; // Speed up animation
+    // Skip animations for distant enemies (performance optimization)
+    const ANIMATION_DISTANCE = 30;
+    const shouldAnimate = this.distanceToPlayer <= ANIMATION_DISTANCE;
+
+    // Update animation time (only if close enough)
+    if (shouldAnimate) {
+      this.animationTime += deltaTime * 10; // Speed up animation
+    }
 
     // Goofy bouncy walking animation
     const isMoving = this.velocity.length() > 0.1;
@@ -150,7 +227,7 @@ export class Enemy {
     let wobbleRotation = 0;
     let scaleMultiplier = 1;
 
-    if (isMoving) {
+    if (shouldAnimate && isMoving) {
       // Bouncy vertical movement
       bounceOffset = Math.sin(this.animationTime) * 0.3;
       
@@ -163,7 +240,7 @@ export class Enemy {
     }
 
     // Attack animation (exaggerated)
-    if (aiResult.state === 'attack' && aiResult.isAttacking) {
+    if (shouldAnimate && aiResult.state === 'attack' && aiResult.isAttacking) {
       // Big scale up and rotation
       scaleMultiplier = 1.3;
       wobbleRotation += Math.sin(this.animationTime * 5) * 0.5;
@@ -183,12 +260,13 @@ export class Enemy {
     // Apply scale animation
     this.mesh.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
 
-    // Try to shoot
-    return this.tryShoot(playerPosition);
+    // Try to shoot with predictive aiming
+    const aimOffset = aiResult.aimOffset || new THREE.Vector3();
+    return this.tryShoot(playerPosition, aimOffset);
   }
 
 
-  public tryShoot(playerPosition: THREE.Vector3): Bullet | null {
+  public tryShoot(playerPosition: THREE.Vector3, aimOffset: THREE.Vector3 = new THREE.Vector3()): Bullet | null {
     if (this.health.isDead()) return null;
 
     const currentTime = Date.now();
@@ -207,8 +285,10 @@ export class Enemy {
         this.position.z
       );
       
+      // Use predictive aiming (aimOffset from AI)
+      const targetPosition = playerPosition.clone().add(aimOffset);
       const direction = new THREE.Vector3()
-        .subVectors(playerPosition, shootPosition)
+        .subVectors(targetPosition, shootPosition)
         .normalize();
 
       const bullet = new Bullet(
@@ -230,6 +310,7 @@ export class Enemy {
 
   public takeDamage(amount: number): void {
     this.health.takeDamage(amount);
+    this.wasDamaged = true; // Flag for AI to seek cover
     
     // Visual feedback: briefly change color
     this.mesh.children.forEach((child) => {

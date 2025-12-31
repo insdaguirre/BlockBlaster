@@ -11,6 +11,10 @@ export class EnemyAI {
   private detectionRange: number;
   private attackRange: number;
   private attackCooldown: number;
+  private lastDamageTime: number = 0;
+  private healthPercentage: number = 1.0;
+  private lastKnownPlayerPosition: THREE.Vector3 | null = null;
+  private playerVelocity: THREE.Vector3 = new THREE.Vector3();
 
   constructor() {
     this.detectionRange = GAME_CONFIG.ENEMY.DETECTION_RANGE;
@@ -21,16 +25,55 @@ export class EnemyAI {
   public update(
     enemyPosition: THREE.Vector3,
     playerPosition: THREE.Vector3,
-    _collisionDetector: CollisionDetector,
-    _deltaTime: number
-  ): { direction: THREE.Vector3; state: EnemyState; isAttacking: boolean } {
+    collisionDetector: CollisionDetector,
+    deltaTime: number,
+    healthPercentage: number = 1.0,
+    wasDamaged: boolean = false
+  ): { direction: THREE.Vector3; state: EnemyState; isAttacking: boolean; aimOffset?: THREE.Vector3 } {
     if (this.state === 'dead') {
       return { direction: new THREE.Vector3(), state: 'dead', isAttacking: false };
     }
 
+    // Update health and track damage
+    this.healthPercentage = healthPercentage;
+    if (wasDamaged) {
+      this.lastDamageTime = Date.now();
+    }
+
+    // Track player velocity for predictive aiming
+    if (this.lastKnownPlayerPosition) {
+      this.playerVelocity.subVectors(playerPosition, this.lastKnownPlayerPosition).divideScalar(deltaTime || 0.016);
+    }
+    this.lastKnownPlayerPosition = playerPosition.clone();
+
     const distanceToPlayer = enemyPosition.distanceTo(playerPosition);
     let direction = new THREE.Vector3();
     let isAttacking = false;
+    let aimOffset = new THREE.Vector3();
+
+    // Retreat if low health
+    if (this.healthPercentage < 0.3 && distanceToPlayer < this.detectionRange) {
+      // Try to find cover and retreat
+      direction = this.seekCover(enemyPosition, playerPosition, collisionDetector);
+      if (direction.length() < 0.1) {
+        // No cover found, retreat directly
+        direction = new THREE.Vector3()
+          .subVectors(enemyPosition, playerPosition)
+          .normalize();
+        direction.y = 0;
+      }
+      return { direction, state: 'chase', isAttacking: false };
+    }
+
+    // Seek cover if recently damaged
+    const timeSinceDamage = Date.now() - this.lastDamageTime;
+    if (timeSinceDamage < 2000 && distanceToPlayer < this.detectionRange) {
+      const coverDirection = this.seekCover(enemyPosition, playerPosition, collisionDetector);
+      if (coverDirection.length() > 0.1) {
+        direction = coverDirection;
+        return { direction, state: 'chase', isAttacking: false };
+      }
+    }
 
     // State transitions
     if (distanceToPlayer <= this.attackRange) {
@@ -44,18 +87,127 @@ export class EnemyAI {
     // State behaviors
     switch (this.state) {
       case 'patrol':
-        direction = this.patrol(enemyPosition, _collisionDetector);
+        direction = this.patrol(enemyPosition, collisionDetector);
         break;
       case 'chase':
-        direction = this.chase(enemyPosition, playerPosition, _collisionDetector);
+        direction = this.chase(enemyPosition, playerPosition, collisionDetector);
+        // Try flanking behavior
+        if (distanceToPlayer > this.attackRange * 1.5) {
+          const flankDirection = this.flank(enemyPosition, playerPosition, collisionDetector);
+          if (flankDirection.length() > 0.1) {
+            direction = flankDirection;
+          }
+        }
         break;
       case 'attack':
         direction = this.attack(enemyPosition, playerPosition);
-        isAttacking = this.canAttack();
+        // Check line of sight before attacking
+        if (this.hasLineOfSight(enemyPosition, playerPosition, collisionDetector)) {
+          isAttacking = this.canAttack();
+          // Predictive aiming
+          if (isAttacking && this.playerVelocity.length() > 0.1) {
+            const timeToHit = distanceToPlayer / GAME_CONFIG.ENEMY.BULLET_SPEED;
+            aimOffset = this.playerVelocity.clone().multiplyScalar(timeToHit);
+          }
+        }
         break;
     }
 
-    return { direction, state: this.state, isAttacking };
+    return { direction, state: this.state, isAttacking, aimOffset };
+  }
+
+  private seekCover(
+    enemyPosition: THREE.Vector3,
+    playerPosition: THREE.Vector3,
+    collisionDetector: CollisionDetector
+  ): THREE.Vector3 {
+    // Look for nearby cover (blocks) to move toward
+    const searchRadius = 10;
+    const searchSteps = 8;
+    let bestCover: THREE.Vector3 | null = null;
+    let bestScore = 0;
+
+    for (let i = 0; i < searchSteps; i++) {
+      const angle = (i / searchSteps) * Math.PI * 2;
+      const testPos = enemyPosition.clone();
+      testPos.x += Math.cos(angle) * searchRadius;
+      testPos.z += Math.sin(angle) * searchRadius;
+
+      // Check if there's a block nearby (cover)
+      const blockSize = new THREE.Vector3(1, 2, 1);
+      if (collisionDetector.checkCollision(testPos, blockSize)) {
+        // This position has cover
+        const distanceToPlayer = testPos.distanceTo(playerPosition);
+        const distanceFromEnemy = testPos.distanceTo(enemyPosition);
+        const score = distanceToPlayer / (distanceFromEnemy + 1); // Prefer cover that's further from player but not too far
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestCover = testPos;
+        }
+      }
+    }
+
+    if (bestCover) {
+      const direction = new THREE.Vector3()
+        .subVectors(bestCover, enemyPosition)
+        .normalize();
+      direction.y = 0;
+      return direction;
+    }
+
+    return new THREE.Vector3();
+  }
+
+  private flank(
+    enemyPosition: THREE.Vector3,
+    playerPosition: THREE.Vector3,
+    collisionDetector: CollisionDetector
+  ): THREE.Vector3 {
+    // Try to approach from an angle (45-90 degrees) instead of directly
+    const toPlayer = new THREE.Vector3()
+      .subVectors(playerPosition, enemyPosition)
+      .normalize();
+    
+    // Calculate perpendicular direction for flanking
+    const flankAngle = Math.PI / 3; // 60 degrees
+    const perp = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x);
+    const flankDirection = new THREE.Vector3()
+      .addVectors(
+        toPlayer.clone().multiplyScalar(Math.cos(flankAngle)),
+        perp.multiplyScalar(Math.sin(flankAngle) * (Math.random() > 0.5 ? 1 : -1))
+      )
+      .normalize();
+
+    // Check if flank path is clear
+    const testPos = enemyPosition.clone().add(flankDirection.clone().multiplyScalar(3));
+    const enemySize = new THREE.Vector3(1, 2, 1);
+    if (!collisionDetector.checkCollision(testPos, enemySize)) {
+      return flankDirection;
+    }
+
+    return new THREE.Vector3();
+  }
+
+  private hasLineOfSight(
+    from: THREE.Vector3,
+    to: THREE.Vector3,
+    collisionDetector: CollisionDetector
+  ): boolean {
+    // Simple raycast check - if there's a clear path, return true
+    const direction = new THREE.Vector3().subVectors(to, from).normalize();
+    const distance = from.distanceTo(to);
+    
+    // Check a few points along the path
+    for (let i = 1; i <= 5; i++) {
+      const checkPos = from.clone().add(direction.clone().multiplyScalar((distance * i) / 5));
+      const blockSize = new THREE.Vector3(0.5, 0.5, 0.5);
+      if (collisionDetector.checkCollision(checkPos, blockSize)) {
+        return false; // Path is blocked
+      }
+    }
+    
+    return true; // Clear line of sight
   }
 
   private patrol(

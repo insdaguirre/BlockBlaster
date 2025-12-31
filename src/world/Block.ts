@@ -114,7 +114,7 @@ export class Block {
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.copy(position);
-    mesh.castShadow = true;
+    mesh.castShadow = false; // Disable shadows for performance
     mesh.receiveShadow = true;
 
     return mesh;
@@ -135,7 +135,7 @@ export class Block {
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.copy(position);
-    mesh.castShadow = true;
+    mesh.castShadow = false; // Disable shadows on rocks for performance
     mesh.receiveShadow = true;
 
     return mesh;

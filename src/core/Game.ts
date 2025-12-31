@@ -8,6 +8,7 @@ import { Enemy } from '../enemy/Enemy';
 import { Boss } from '../enemy/Boss';
 import { HUD } from '../ui/HUD';
 import { GameOverScreen } from '../ui/GameOverScreen';
+import { PauseMenu } from '../ui/PauseMenu';
 import { GameState } from '../types';
 import { Bullet } from '../weapon/Bullet';
 import { GAME_CONFIG } from '../utils/constants';
@@ -25,6 +26,7 @@ export class Game {
   private bullets: Bullet[] = [];
   private hud: HUD;
   private gameOverScreen: GameOverScreen;
+  private pauseMenu: PauseMenu;
   private gameState: GameState;
   private lastTime: number = 0;
   private animationFrameId: number | null = null;
@@ -69,9 +71,18 @@ export class Game {
     // UI
     this.hud = new HUD();
     this.gameOverScreen = new GameOverScreen(() => this.restart());
+    this.pauseMenu = new PauseMenu(
+      () => this.resume(),
+      (sensitivity) => this.playerController.setSensitivity(sensitivity)
+    );
+    
+    // Load saved sensitivity on start
+    const savedSensitivity = this.pauseMenu.getSensitivity();
+    this.playerController.setSensitivity(savedSensitivity);
 
     // Setup start screen
     this.setupStartScreen();
+    this.setupPauseHandling();
   }
 
   private setupStartScreen(): void {
@@ -86,6 +97,36 @@ export class Game {
         this.start();
       });
     }
+  }
+
+  private setupPauseHandling(): void {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        if (this.gameState.isPlaying && !this.gameState.isGameOver) {
+          if (this.gameState.isPaused) {
+            this.resume();
+          } else {
+            this.pause();
+          }
+        }
+      }
+    });
+  }
+
+  private pause(): void {
+    this.gameState.isPaused = true;
+    this.pauseMenu.show();
+    // Release pointer lock when pausing
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+  }
+
+  private resume(): void {
+    this.gameState.isPaused = false;
+    this.pauseMenu.hide();
+    // Request pointer lock when resuming
+    this.inputManager.requestPointerLock();
   }
 
   public start(): void {
@@ -112,7 +153,12 @@ export class Game {
   }
 
   private gameLoop(currentTime: number): void {
-    if (!this.gameState.isPlaying || this.gameState.isGameOver) {
+    if (!this.gameState.isPlaying || this.gameState.isGameOver || this.gameState.isPaused) {
+      // Still render when paused (for visual continuity)
+      if (this.gameState.isPaused) {
+        this.sceneManager.render();
+        this.animationFrameId = requestAnimationFrame((time) => this.gameLoop(time));
+      }
       return;
     }
 
@@ -136,6 +182,16 @@ export class Game {
     const newBullet = this.gun.update(deltaTime, this.enemies, this.playerController.getPosition());
     if (newBullet) {
       this.bullets.push(newBullet);
+    }
+
+    // Limit active bullets for performance (max 50)
+    const MAX_BULLETS = 50;
+    if (this.bullets.length > MAX_BULLETS) {
+      // Remove oldest bullets
+      for (let i = 0; i < this.bullets.length - MAX_BULLETS; i++) {
+        this.bullets[i].dispose();
+        this.bullets.splice(i, 1);
+      }
     }
 
     // Update bullets
@@ -193,8 +249,16 @@ export class Game {
 
     // Update enemies (iterate backwards to safely remove)
     const playerPosition = this.playerController.getPosition();
+    const UPDATE_DISTANCE = 50; // Only update enemies within this distance
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i];
+      const distanceToEnemy = playerPosition.distanceTo(enemy.getPosition());
+      
+      // Skip updates for distant enemies (performance optimization)
+      if (distanceToEnemy > UPDATE_DISTANCE) {
+        continue;
+      }
+      
       const enemyBullet = enemy.update(deltaTime, playerPosition);
       
       // Check if enemy attacks player (melee)
@@ -258,8 +322,11 @@ export class Game {
     this.hud.update(
       this.playerHealth.getHealth(),
       this.playerHealth.getMaxHealth(),
-      this.gun.getAmmo(),
-      this.gun.getMaxAmmo(),
+      this.gun.getCurrentMagAmmo(),
+      this.gun.getMagazines(),
+      this.gun.getMaxMagAmmo(),
+      this.gun.isReloadingNow(),
+      this.gun.getReloadProgress(),
       this.boss ? this.boss.getHealth() : undefined,
       this.boss ? this.boss.getMaxHealth() : undefined
     );

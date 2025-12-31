@@ -35,6 +35,7 @@ export class PlayerController {
     // Handle mouse look
     if (this.inputManager.isPointerLocked()) {
       const mouseDelta = this.inputManager.getMouseDelta();
+      // Apply sensitivity directly (mouse delta is already per-frame from browser)
       this.yaw -= mouseDelta.x * this.mouseSensitivity;
       this.pitch -= mouseDelta.y * this.mouseSensitivity;
       
@@ -170,6 +171,14 @@ export class PlayerController {
 
   public getCamera(): THREE.PerspectiveCamera {
     return this.camera;
+  }
+
+  public setSensitivity(sensitivity: number): void {
+    this.mouseSensitivity = sensitivity;
+  }
+
+  public getSensitivity(): number {
+    return this.mouseSensitivity;
   }
 
   public reset(startPosition: THREE.Vector3): void {

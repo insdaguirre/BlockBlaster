@@ -3,6 +3,7 @@ export class HUD {
   private healthBar: HTMLElement;
   private healthBarFill: HTMLElement;
   private ammoDisplay: HTMLElement;
+  private reloadIndicator: HTMLElement;
   private bossHealthBar: HTMLElement | null = null;
   private bossHealthBarFill: HTMLElement | null = null;
 
@@ -12,6 +13,7 @@ export class HUD {
     this.healthBar = this.createHealthBar();
     this.healthBarFill = this.healthBar.querySelector('.health-fill') as HTMLElement;
     this.ammoDisplay = this.createAmmoDisplay();
+    this.reloadIndicator = this.createReloadIndicator();
   }
 
   private createContainer(): HTMLElement {
@@ -134,7 +136,35 @@ export class HUD {
     return ammoContainer;
   }
 
-  public update(health: number, maxHealth: number, ammo?: number, maxAmmo?: number, bossHealth?: number, bossMaxHealth?: number): void {
+  private createReloadIndicator(): HTMLElement {
+    const reloadContainer = document.createElement('div');
+    reloadContainer.id = 'reload-indicator';
+    reloadContainer.style.cssText = `
+      position: absolute;
+      bottom: 80px;
+      right: 30px;
+      color: #ffaa00;
+      font-size: 18px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+      display: none;
+    `;
+    this.container.appendChild(reloadContainer);
+    return reloadContainer;
+  }
+
+  public update(
+    health: number, 
+    maxHealth: number, 
+    currentMagAmmo?: number, 
+    magazines?: number, 
+    maxMagAmmo?: number,
+    isReloading?: boolean,
+    reloadProgress?: number,
+    bossHealth?: number, 
+    bossMaxHealth?: number
+  ): void {
     const percentage = Math.max(0, Math.min(100, (health / maxHealth) * 100));
     
     if (this.healthBarFill) {
@@ -146,16 +176,27 @@ export class HUD {
       healthText.textContent = `${Math.ceil(health)} / ${maxHealth}`;
     }
 
-    // Update ammo display
-    if (this.ammoDisplay && ammo !== undefined && maxAmmo !== undefined) {
-      this.ammoDisplay.textContent = `${ammo} / ${maxAmmo}`;
+    // Update ammo display (magazine system)
+    if (this.ammoDisplay && currentMagAmmo !== undefined && magazines !== undefined && maxMagAmmo !== undefined) {
+      this.ammoDisplay.textContent = `${currentMagAmmo} / ${magazines}`;
       // Change color when low on ammo
-      if (ammo === 0) {
+      if (currentMagAmmo === 0) {
         this.ammoDisplay.style.color = '#ff0000';
-      } else if (ammo <= maxAmmo * 0.3) {
+      } else if (currentMagAmmo <= maxMagAmmo * 0.3) {
         this.ammoDisplay.style.color = '#ffaa00';
       } else {
         this.ammoDisplay.style.color = '#ffffff';
+      }
+    }
+
+    // Update reload indicator
+    if (this.reloadIndicator && isReloading !== undefined) {
+      if (isReloading && reloadProgress !== undefined) {
+        this.reloadIndicator.style.display = 'block';
+        const progressPercent = Math.floor(reloadProgress * 100);
+        this.reloadIndicator.textContent = `RELOADING... ${progressPercent}%`;
+      } else {
+        this.reloadIndicator.style.display = 'none';
       }
     }
 
