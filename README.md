@@ -1,6 +1,6 @@
 # BlockBlaster
 
-A first-person shooter game with block-style 3D graphics built with Three.js, TypeScript, and Vite. Fight through waves of enemies and defeat the boss in a procedurally generated beach environment with spacecraft wreckage.
+A first-person shooter game with block-style 3D graphics built with Three.js, TypeScript, and Vite. Fight through waves of enemies and defeat the boss in a procedurally generated beach environment with spacecraft wreckage. Built live while demo'ing Cursor. 
 
 ## Features
 
