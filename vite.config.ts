@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-  base: './',
+const productionBase = process.env.BLOCKBLASTER_BASE ?? '/BlockBlaster/';
+
+export default defineConfig(({ command }) => ({
+  base: command === 'serve' ? '/' : productionBase,
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -22,4 +24,4 @@ export default defineConfig({
   test: {
     environment: 'jsdom'
   }
-});
+}));
