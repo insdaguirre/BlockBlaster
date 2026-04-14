@@ -38,6 +38,22 @@
             </div>
         </div>
     </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script>
+        const isViteDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '3000';
+        const bootstrapScript = document.createElement('script');
+        bootstrapScript.type = 'module';
+
+        if (isViteDev) {
+            bootstrapScript.src = '/src/main.ts';
+        } else {
+            const stylesheet = document.createElement('link');
+            stylesheet.rel = 'stylesheet';
+            stylesheet.href = './dist/assets/index.css';
+            document.head.appendChild(stylesheet);
+            bootstrapScript.src = './dist/assets/index.js';
+        }
+
+        document.body.appendChild(bootstrapScript);
+    </script>
 </body>
 </html>

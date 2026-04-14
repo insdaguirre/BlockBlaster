@@ -2,7 +2,7 @@
 node_modules/
 
 # Build output
-dist/
+# `dist/` is committed because the live site is currently served from the repo root.
 dist-ssr/
 *.local
 
@@ -36,4 +36,3 @@ lerna-debug.log*
 
 # Netlify
 .netlify
-
