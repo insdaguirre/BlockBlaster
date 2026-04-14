@@ -3,100 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FPS Block Game</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-            background: #000;
-        }
-        
-        #game-container {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-        }
-        
-        #canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        
-        #ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 100;
-        }
-        
-        #start-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 200;
-            pointer-events: all;
-        }
-        
-        #start-screen h1 {
-            font-size: 3em;
-            margin-bottom: 20px;
-        }
-        
-        #start-screen p {
-            font-size: 1.2em;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        #start-button {
-            padding: 15px 40px;
-            font-size: 1.2em;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        #start-button:hover {
-            background: #45a049;
-        }
-        
-        #start-screen.hidden {
-            display: none;
-        }
-    </style>
+    <title>BlockBlaster</title>
+    <meta name="description" content="A polished browser FPS built with TypeScript, Three.js, and Vite. Drop onto a stylized beachhead, clear the enemy squad, and defeat the boss.">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta property="og:title" content="BlockBlaster">
+    <meta property="og:description" content="A premium-feeling browser FPS with a stylized voxel beachhead, procedural audio, and a complete boss encounter.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="/og-image.svg">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 </head>
 <body>
     <div id="game-container">
         <canvas id="canvas"></canvas>
         <div id="ui-overlay"></div>
         <div id="start-screen">
-            <h1>FPS Block Game</h1>
-            <p>WASD - Move | Mouse - Look | Left Click - Shoot | Space - Jump</p>
-            <button id="start-button">Start Game</button>
+            <div class="start-card">
+                <div class="eyebrow">Beachhead Protocol</div>
+                <h1 class="hero-title">BlockBlaster</h1>
+                <p class="hero-body">A compact, high-intensity browser FPS. Sweep the beach, survive the counterfire, and close out the boss encounter with a clean run.</p>
+                <div class="start-grid">
+                    <div class="start-meta">
+                        <div class="start-tag">TypeScript • Three.js • Procedural Audio</div>
+                        <div class="start-high-score" id="start-high-score">Best Run 0</div>
+                    </div>
+                    <button id="start-button" class="hud-button primary-button">Enter Beachhead</button>
+                </div>
+                <div class="control-list">
+                    <div class="control-row"><strong>WASD</strong><span>Move</span></div>
+                    <div class="control-row"><strong>Mouse</strong><span>Look</span></div>
+                    <div class="control-row"><strong>Click</strong><span>Fire</span></div>
+                    <div class="control-row"><strong>R / M / Esc</strong><span>Reload, mute, pause</span></div>
+                    <div class="control-row"><strong>Space</strong><span>Jump</span></div>
+                </div>
+            </div>
         </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
-

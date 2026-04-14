@@ -4,6 +4,7 @@ import { EnemyHealth } from './EnemyHealth';
 import { CollisionDetector } from '../world/CollisionDetector';
 import { GAME_CONFIG } from '../utils/constants';
 import { Bullet } from '../weapon/Bullet';
+import { EventBus } from '../core/EventBus';
 
 export class Boss {
   private mesh: THREE.Group;
@@ -15,12 +16,15 @@ export class Boss {
   private scene: THREE.Scene;
   private distanceToPlayer: number = Infinity;
   private lastShotTime: number = 0;
+  private readonly eventBus: EventBus;
+  private deathAnnounced: boolean = false;
 
   constructor(
     startPosition: THREE.Vector3,
     scene: THREE.Scene,
     _playerPositionGetter: () => THREE.Vector3,
-    collisionDetector: CollisionDetector
+    collisionDetector: CollisionDetector,
+    eventBus: EventBus
   ) {
     this.position = startPosition.clone();
     this.velocity = new THREE.Vector3();
@@ -30,6 +34,7 @@ export class Boss {
     this.health.setMaxHealth(GAME_CONFIG.BOSS.MAX_HEALTH);
     this.collisionDetector = collisionDetector;
     this.scene = scene;
+    this.eventBus = eventBus;
 
     // Create larger boss model
     this.mesh = this.createBossModel();
@@ -205,14 +210,20 @@ export class Boss {
       );
 
       this.lastShotTime = currentTime;
+      this.eventBus.emit('shotFired', { position: shootPosition.clone(), isPlayer: false });
       return bullet;
     }
 
     return null;
   }
 
-  public takeDamage(amount: number): void {
+  public takeDamage(amount: number): boolean {
+    if (this.health.isDead()) {
+      return false;
+    }
+
     this.health.takeDamage(amount);
+    this.eventBus.emit('enemyDamaged', { position: this.position.clone(), isBoss: true });
     
     // Visual feedback: briefly change color
     this.mesh.children.forEach((child) => {
@@ -225,6 +236,14 @@ export class Boss {
         }, 100);
       }
     });
+
+    if (this.health.isDead() && !this.deathAnnounced) {
+      this.deathAnnounced = true;
+      this.eventBus.emit('enemyDied', { position: this.position.clone(), isBoss: true });
+      return true;
+    }
+
+    return false;
   }
 
   public isDead(): boolean {
@@ -254,5 +273,19 @@ export class Boss {
   public getMaxHealth(): number {
     return this.health.getMaxHealth();
   }
-}
 
+  public dispose(): void {
+    this.mesh.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) {
+        return;
+      }
+
+      child.geometry.dispose();
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => material.dispose());
+      } else {
+        child.material.dispose();
+      }
+    });
+  }
+}

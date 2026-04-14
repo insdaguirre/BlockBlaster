@@ -1,3 +1,4 @@
+import './styles.css';
 import { Game } from './core/Game';
 
 // Get canvas element
@@ -14,4 +15,3 @@ const game = new Game(canvas);
 window.addEventListener('beforeunload', () => {
   game.cleanup();
 });
-

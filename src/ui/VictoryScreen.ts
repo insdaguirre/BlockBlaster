@@ -1,12 +1,12 @@
 import { RunSummary } from '../types';
 import { RunSummaryOverlay } from './RunSummaryOverlay';
 
-export class GameOverScreen extends RunSummaryOverlay {
+export class VictoryScreen extends RunSummaryOverlay {
   constructor(onRestart: () => void) {
-    super('game-over-screen', 'Retry Mission', onRestart);
+    super('victory-screen', 'Play Again', onRestart);
   }
 
   public show(summary: RunSummary): void {
-    super.show(summary, 'DEFEAT');
+    super.show(summary, 'VICTORY');
   }
 }

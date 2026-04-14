@@ -4,6 +4,7 @@ export interface GameState {
   isPlaying: boolean;
   isPaused: boolean;
   isGameOver: boolean;
+  isVictory: boolean;
 }
 
 export interface PlayerState {
@@ -37,3 +38,34 @@ export interface InputState {
   isPointerLocked: boolean;
 }
 
+export interface RunSummary {
+  score: number;
+  killScore: number;
+  accuracyBonus: number;
+  timeBonus: number;
+  shotsFired: number;
+  shotsHit: number;
+  kills: number;
+  bossDefeated: boolean;
+  elapsedMs: number;
+  accuracy: number;
+  isHighScore: boolean;
+  highScore: number;
+  title: string;
+  subtitle: string;
+}
+
+export interface HudState {
+  health: number;
+  maxHealth: number;
+  currentMagAmmo: number;
+  magazines: number;
+  maxMagAmmo: number;
+  isReloading: boolean;
+  reloadProgress: number;
+  bossHealth?: number;
+  bossMaxHealth?: number;
+  score: number;
+  highScore: number;
+  elapsedMs: number;
+}

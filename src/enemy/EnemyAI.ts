@@ -22,6 +22,7 @@ export class EnemyAI {
     this.attackCooldown = GAME_CONFIG.ENEMY.ATTACK_COOLDOWN;
   }
 
+  /** Advances the state machine and returns movement plus attack intent. */
   public update(
     enemyPosition: THREE.Vector3,
     playerPosition: THREE.Vector3,
@@ -323,4 +324,3 @@ export class EnemyAI {
     return this.state;
   }
 }
-
