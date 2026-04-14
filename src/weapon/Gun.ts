@@ -5,6 +5,7 @@ import { Enemy } from '../enemy/Enemy';
 import { GAME_CONFIG } from '../utils/constants';
 import { Bullet } from './Bullet';
 import { CollisionDetector } from '../world/CollisionDetector';
+import { EventBus } from '../core/EventBus';
 
 export class Gun extends Weapon {
   private muzzleFlashLight: THREE.PointLight | null = null;
@@ -18,12 +19,15 @@ export class Gun extends Weapon {
   private collisionDetector: CollisionDetector;
   private recoilAmount: number = 0;
   private recoilTime: number = 0;
+  private readonly eventBus: EventBus;
+  private lastEmptyClickTime: number = 0;
 
   constructor(
     camera: THREE.PerspectiveCamera,
     scene: THREE.Scene,
     inputManager: InputManager,
-    collisionDetector: CollisionDetector
+    collisionDetector: CollisionDetector,
+    eventBus: EventBus
   ) {
     super(camera, scene, inputManager);
     this.fireRate = GAME_CONFIG.WEAPON.FIRE_RATE;
@@ -33,8 +37,10 @@ export class Gun extends Weapon {
     this.magazines = 3; // 3 magazines
     this.currentMagAmmo = this.maxMagAmmo; // Start with full mag
     this.collisionDetector = collisionDetector;
+    this.eventBus = eventBus;
   }
 
+  /** Updates reload/recoil state and emits a bullet when the weapon fires. */
   public update(deltaTime: number, _enemies: Enemy[], _playerPosition: THREE.Vector3): Bullet | null {
     const currentTime = Date.now();
 
@@ -79,6 +85,16 @@ export class Gun extends Weapon {
       }
     }
 
+    if (
+      !this.isReloading &&
+      this.inputManager.isMouseButtonPressed(0) &&
+      this.currentMagAmmo === 0 &&
+      currentTime - this.lastEmptyClickTime >= 180
+    ) {
+      this.lastEmptyClickTime = currentTime;
+      this.eventBus.emit('triggerEmpty', undefined);
+    }
+
     // Auto-reload when empty (optional - can be removed if not desired)
     if (this.currentMagAmmo === 0 && !this.isReloading && this.magazines > 0) {
       this.startReload();
@@ -101,6 +117,7 @@ export class Gun extends Weapon {
   private startReload(): void {
     this.isReloading = true;
     this.reloadTimer = this.reloadTime;
+    this.eventBus.emit('reloadStarted', undefined);
   }
 
   private completeReload(): void {
@@ -110,6 +127,7 @@ export class Gun extends Weapon {
     }
     this.isReloading = false;
     this.reloadTimer = 0;
+    this.eventBus.emit('reloadCompleted', undefined);
   }
 
   private shoot(): Bullet | null {
@@ -136,6 +154,7 @@ export class Gun extends Weapon {
 
     // Create muzzle flash
     this.createMuzzleFlash();
+    this.eventBus.emit('shotFired', { position: bulletStart.clone(), isPlayer: true });
 
     return bullet;
   }
@@ -160,27 +179,33 @@ export class Gun extends Weapon {
     this.muzzleFlashEndTime = Date.now() + GAME_CONFIG.WEAPON.MUZZLE_FLASH_DURATION;
   }
 
+  /** Returns ammo left in the active magazine. */
   public getCurrentMagAmmo(): number {
     return this.currentMagAmmo;
   }
 
+  /** Returns the remaining spare magazines. */
   public getMagazines(): number {
     return this.magazines;
   }
 
+  /** Returns the capacity of a full magazine. */
   public getMaxMagAmmo(): number {
     return this.maxMagAmmo;
   }
 
+  /** Returns whether the gun is currently reloading. */
   public isReloadingNow(): boolean {
     return this.isReloading;
   }
 
+  /** Returns reload progress in the 0..1 range. */
   public getReloadProgress(): number {
     if (!this.isReloading) return 0;
     return 1 - (this.reloadTimer / this.reloadTime);
   }
 
+  /** Restores the weapon to its initial ammo and visual state. */
   public reset(): void {
     this.lastShotTime = 0;
     this.currentMagAmmo = this.maxMagAmmo;
@@ -191,6 +216,6 @@ export class Gun extends Weapon {
       this.scene.remove(this.muzzleFlashLight);
       this.muzzleFlashLight = null;
     }
+    this.lastEmptyClickTime = 0;
   }
 }
-

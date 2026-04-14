@@ -4,6 +4,7 @@ import { EnemyHealth } from './EnemyHealth';
 import { CollisionDetector } from '../world/CollisionDetector';
 import { GAME_CONFIG } from '../utils/constants';
 import { Bullet } from '../weapon/Bullet';
+import { EventBus } from '../core/EventBus';
 
 export class Enemy {
   private mesh: THREE.Group;
@@ -17,12 +18,15 @@ export class Enemy {
   private lastShotTime: number = 0;
   private animationTime: number = 0;
   private wasDamaged: boolean = false;
+  private readonly eventBus: EventBus;
+  private deathAnnounced: boolean = false;
 
   constructor(
     startPosition: THREE.Vector3,
     scene: THREE.Scene,
     _playerPositionGetter: () => THREE.Vector3,
-    collisionDetector: CollisionDetector
+    collisionDetector: CollisionDetector,
+    eventBus: EventBus
   ) {
     this.position = startPosition.clone();
     this.velocity = new THREE.Vector3();
@@ -30,6 +34,7 @@ export class Enemy {
     this.health = new EnemyHealth();
     this.collisionDetector = collisionDetector;
     this.scene = scene;
+    this.eventBus = eventBus;
 
     // Create block-style enemy model
     this.mesh = this.createEnemyModel();
@@ -302,15 +307,21 @@ export class Enemy {
       );
 
       this.lastShotTime = currentTime;
+      this.eventBus.emit('shotFired', { position: shootPosition.clone(), isPlayer: false });
       return bullet;
     }
 
     return null;
   }
 
-  public takeDamage(amount: number): void {
+  public takeDamage(amount: number): boolean {
+    if (this.health.isDead()) {
+      return false;
+    }
+
     this.health.takeDamage(amount);
     this.wasDamaged = true; // Flag for AI to seek cover
+    this.eventBus.emit('enemyDamaged', { position: this.position.clone(), isBoss: false });
     
     // Visual feedback: briefly change color
     this.mesh.children.forEach((child) => {
@@ -323,6 +334,14 @@ export class Enemy {
         }, 100);
       }
     });
+
+    if (this.health.isDead() && !this.deathAnnounced) {
+      this.deathAnnounced = true;
+      this.eventBus.emit('enemyDied', { position: this.position.clone(), isBoss: false });
+      return true;
+    }
+
+    return false;
   }
 
   public isDead(): boolean {
@@ -344,5 +363,19 @@ export class Enemy {
   public getPosition(): THREE.Vector3 {
     return this.position.clone();
   }
-}
 
+  public dispose(): void {
+    this.mesh.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) {
+        return;
+      }
+
+      child.geometry.dispose();
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => material.dispose());
+      } else {
+        child.material.dispose();
+      }
+    });
+  }
+}

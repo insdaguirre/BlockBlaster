@@ -1,185 +1,140 @@
+import { createElement } from './dom';
+
+interface PauseMenuOptions {
+  onResume: () => void;
+  onSensitivityChange: (value: number) => void;
+  onVolumeChange: (value: number) => void;
+  onMuteChange: (muted: boolean) => void;
+  initialSensitivity: number;
+  initialVolume: number;
+  initialMuted: boolean;
+}
+
 export class PauseMenu {
-  private container: HTMLElement;
-  private sensitivitySlider!: HTMLInputElement;
-  private sensitivityValue!: HTMLElement;
-  private onResume: () => void;
-  private onSensitivityChange: (value: number) => void;
-  private currentSensitivity: number = 0.002;
+  private readonly container: HTMLElement;
+  private readonly sensitivityValue: HTMLElement;
+  private readonly volumeValue: HTMLElement;
+  private readonly muteButton: HTMLButtonElement;
+  private readonly options: PauseMenuOptions;
+  private currentSensitivity: number;
+  private currentVolume: number;
+  private muted: boolean;
 
-  constructor(onResume: () => void, onSensitivityChange: (value: number) => void) {
-    this.onResume = onResume;
-    this.onSensitivityChange = onSensitivityChange;
-    // Load settings first (before creating container)
-    this.loadSettings();
-    this.container = this.createContainer();
-    // Apply loaded settings after container is created
-    if (this.sensitivitySlider) {
-      this.sensitivitySlider.value = this.currentSensitivity.toString();
-      this.updateSensitivityDisplay();
-      this.onSensitivityChange(this.currentSensitivity);
-    }
-  }
+  constructor(options: PauseMenuOptions) {
+    this.options = options;
+    this.currentSensitivity = options.initialSensitivity;
+    this.currentVolume = options.initialVolume;
+    this.muted = options.initialMuted;
 
-  private createContainer(): HTMLElement {
-    const container = document.createElement('div');
-    container.id = 'pause-menu';
-    container.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      color: white;
-      z-index: 400;
-      pointer-events: all;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    `;
+    this.container = createElement('div', 'pause-menu');
+    const panel = createElement('div', 'pause-panel');
+    const label = createElement('div', 'eyebrow', 'SYSTEM');
+    const title = createElement('h1', 'panel-title', 'Paused');
+    const body = createElement('p', 'panel-body', 'Tune controls, adjust volume, and jump straight back into the encounter.');
 
-    const title = document.createElement('h1');
-    title.textContent = 'PAUSED';
-    title.style.cssText = `
-      font-size: 4em;
-      margin-bottom: 40px;
-      text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
-    `;
+    const sensitivityControl = this.createRangeControl(
+      'Aim Sensitivity',
+      '0.001',
+      '0.005',
+      '0.0001',
+      this.currentSensitivity,
+      (value) => {
+        this.currentSensitivity = value;
+        this.sensitivityValue.textContent = value.toFixed(4);
+        localStorage.setItem('mouseSensitivity', String(value));
+        this.options.onSensitivityChange(value);
+      }
+    );
+    this.sensitivityValue = sensitivityControl.value;
+    this.sensitivityValue.textContent = this.currentSensitivity.toFixed(4);
 
-    // Sensitivity control
-    const sensitivityContainer = document.createElement('div');
-    sensitivityContainer.style.cssText = `
-      margin-bottom: 30px;
-      width: 400px;
-    `;
+    const volumeControl = this.createRangeControl(
+      'Master Volume',
+      '0',
+      '1',
+      '0.01',
+      this.currentVolume,
+      (value) => {
+        this.currentVolume = value;
+        this.volumeValue.textContent = `${Math.round(value * 100)}%`;
+        this.options.onVolumeChange(value);
+      }
+    );
+    this.volumeValue = volumeControl.value;
+    this.volumeValue.textContent = `${Math.round(this.currentVolume * 100)}%`;
 
-    const sensitivityLabel = document.createElement('label');
-    sensitivityLabel.textContent = 'Aim Sensitivity:';
-    sensitivityLabel.style.cssText = `
-      display: block;
-      font-size: 1.2em;
-      margin-bottom: 10px;
-    `;
-
-    const sliderContainer = document.createElement('div');
-    sliderContainer.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    `;
-
-    this.sensitivitySlider = document.createElement('input');
-    this.sensitivitySlider.type = 'range';
-    this.sensitivitySlider.min = '0.001';
-    this.sensitivitySlider.max = '0.005';
-    this.sensitivitySlider.step = '0.0001';
-    this.sensitivitySlider.value = this.currentSensitivity.toString();
-    this.sensitivitySlider.style.cssText = `
-      flex: 1;
-      height: 8px;
-      background: #333;
-      border-radius: 5px;
-      outline: none;
-    `;
-
-    this.sensitivityValue = document.createElement('span');
-    this.sensitivityValue.style.cssText = `
-      min-width: 80px;
-      font-size: 1.1em;
-      font-weight: bold;
-    `;
-    this.updateSensitivityDisplay();
-
-    this.sensitivitySlider.addEventListener('input', (e) => {
-      const value = parseFloat((e.target as HTMLInputElement).value);
-      this.currentSensitivity = value;
-      this.updateSensitivityDisplay();
-      this.onSensitivityChange(value);
-      this.saveSettings();
+    this.muteButton = createElement('button', 'hud-button secondary-button') as HTMLButtonElement;
+    this.muteButton.addEventListener('click', () => {
+      this.setMuted(!this.muted);
+      this.options.onMuteChange(this.muted);
     });
+    this.syncMuteLabel();
 
-    sliderContainer.appendChild(this.sensitivitySlider);
-    sliderContainer.appendChild(this.sensitivityValue);
-    sensitivityContainer.appendChild(sensitivityLabel);
-    sensitivityContainer.appendChild(sliderContainer);
-
-    // Resume button
-    const resumeButton = document.createElement('button');
-    resumeButton.textContent = 'Resume (ESC)';
-    resumeButton.style.cssText = `
-      padding: 15px 40px;
-      font-size: 1.2em;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background 0.3s, transform 0.1s;
-      margin-top: 20px;
-    `;
-
-    resumeButton.addEventListener('mouseenter', () => {
-      resumeButton.style.background = '#45a049';
-      resumeButton.style.transform = 'scale(1.05)';
-    });
-
-    resumeButton.addEventListener('mouseleave', () => {
-      resumeButton.style.background = '#4CAF50';
-      resumeButton.style.transform = 'scale(1)';
-    });
-
+    const resumeButton = createElement('button', 'hud-button primary-button', 'Resume');
     resumeButton.addEventListener('click', () => {
       this.hide();
+      this.options.onResume();
     });
 
-    container.appendChild(title);
-    container.appendChild(sensitivityContainer);
-    container.appendChild(resumeButton);
+    const footer = createElement('div', 'pause-footer');
+    footer.append(this.muteButton, resumeButton);
 
-    document.body.appendChild(container);
+    panel.append(label, title, body, sensitivityControl.container, volumeControl.container, footer);
+    this.container.appendChild(panel);
+    document.body.appendChild(this.container);
 
-    return container;
-  }
-
-  private updateSensitivityDisplay(): void {
-    this.sensitivityValue.textContent = this.currentSensitivity.toFixed(4);
-  }
-
-  private saveSettings(): void {
-    localStorage.setItem('mouseSensitivity', this.currentSensitivity.toString());
-  }
-
-  private loadSettings(): void {
-    const saved = localStorage.getItem('mouseSensitivity');
-    if (saved) {
-      this.currentSensitivity = parseFloat(saved);
-    }
+    this.options.onSensitivityChange(this.currentSensitivity);
+    this.options.onVolumeChange(this.currentVolume);
+    this.options.onMuteChange(this.muted);
   }
 
   public show(): void {
-    this.container.style.display = 'flex';
-    setTimeout(() => {
-      this.container.style.opacity = '1';
-    }, 10);
+    this.container.classList.add('visible');
   }
 
   public hide(): void {
-    this.container.style.opacity = '0';
-    setTimeout(() => {
-      this.container.style.display = 'none';
-      this.onResume();
-    }, 300);
-  }
-
-  public isVisible(): boolean {
-    return this.container.style.display === 'flex';
+    this.container.classList.remove('visible');
   }
 
   public getSensitivity(): number {
     return this.currentSensitivity;
   }
-}
 
+  public setMuted(muted: boolean): void {
+    this.muted = muted;
+    this.syncMuteLabel();
+  }
+
+  private createRangeControl(
+    labelText: string,
+    min: string,
+    max: string,
+    step: string,
+    initialValue: number,
+    onInput: (value: number) => void
+  ): { container: HTMLElement; input: HTMLInputElement; value: HTMLElement } {
+    const container = createElement('div', 'field');
+    const header = createElement('div', 'field-header');
+    const label = createElement('label', 'field-label', labelText);
+    const value = createElement('span', 'field-value');
+    const input = createElement('input', 'slider') as HTMLInputElement;
+    input.type = 'range';
+    input.min = min;
+    input.max = max;
+    input.step = step;
+    input.value = String(initialValue);
+    input.addEventListener('input', (event) => {
+      onInput(Number.parseFloat((event.target as HTMLInputElement).value));
+    });
+
+    header.append(label, value);
+    container.append(header, input);
+
+    return { container, input, value };
+  }
+
+  private syncMuteLabel(): void {
+    this.muteButton.textContent = this.muted ? 'Unmute (M)' : 'Mute (M)';
+    this.muteButton.classList.toggle('active', this.muted);
+  }
+}

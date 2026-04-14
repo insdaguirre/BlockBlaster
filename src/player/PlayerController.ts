@@ -31,6 +31,7 @@ export class PlayerController {
     this.camera.position.copy(this.position);
   }
 
+  /** Updates camera look, movement, jumping, and collision resolution. */
   public update(deltaTime: number): void {
     // Handle mouse look
     if (this.inputManager.isPointerLocked()) {
@@ -173,6 +174,7 @@ export class PlayerController {
     return this.camera;
   }
 
+  /** Applies a new mouse sensitivity multiplier. */
   public setSensitivity(sensitivity: number): void {
     this.mouseSensitivity = sensitivity;
   }
@@ -181,6 +183,7 @@ export class PlayerController {
     return this.mouseSensitivity;
   }
 
+  /** Restores player transform and camera state for a fresh run. */
   public reset(startPosition: THREE.Vector3): void {
     this.position = startPosition.clone();
     this.velocity.set(0, 0, 0);
@@ -190,4 +193,3 @@ export class PlayerController {
     this.camera.rotation.set(0, 0, 0);
   }
 }
-

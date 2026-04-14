@@ -12,6 +12,8 @@ export class Bullet {
   private isPlayerBullet: boolean;
   private collisionDetector: CollisionDetector;
   private hasHit: boolean = false;
+  private hitWorld: boolean = false;
+  private impactPosition: THREE.Vector3 | null = null;
 
   constructor(
     startPosition: THREE.Vector3,
@@ -77,6 +79,8 @@ export class Bullet {
       // Check collision with world at this step
       if (this.collisionDetector.checkCollision(testPosition, bulletSize)) {
         this.hasHit = true;
+        this.hitWorld = true;
+        this.impactPosition = testPosition.clone();
         return;
       }
 
@@ -135,6 +139,14 @@ export class Bullet {
     return this.isPlayerBullet;
   }
 
+  public didHitWorld(): boolean {
+    return this.hitWorld;
+  }
+
+  public getImpactPosition(): THREE.Vector3 | null {
+    return this.impactPosition?.clone() ?? null;
+  }
+
   public dispose(): void {
     if (this.mesh.parent) {
       this.mesh.parent.remove(this.mesh);
@@ -151,4 +163,3 @@ export class Bullet {
     });
   }
 }
-

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GAME_CONFIG } from '../utils/constants';
 
 export class SceneManager {
   public scene: THREE.Scene;
@@ -13,8 +14,8 @@ export class SceneManager {
     
     // Scene - Beach setting
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); // Bright sky blue for beach
-    this.scene.fog = new THREE.Fog(0x87CEEB, 30, 60); // Reduced fog distance for performance
+    this.scene.background = new THREE.Color(0x87b9d9);
+    this.scene.fog = new THREE.Fog(0x87b9d9, GAME_CONFIG.PERFORMANCE.FOG_NEAR, GAME_CONFIG.PERFORMANCE.FOG_FAR);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
@@ -32,27 +33,25 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    // Use cheaper shadow type for better performance (will be overridden by directional light)
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
 
     // Lighting - Beach setting (bright, warm sunlight)
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // Brighter ambient for beach
+    this.ambientLight = new THREE.AmbientLight(0xe8f6ff, 0.72);
     this.scene.add(this.ambientLight);
 
-    this.directionalLight = new THREE.DirectionalLight(0xfff8dc, 0.9); // Warm sunlight color
-    this.directionalLight.position.set(15, 25, 10); // Higher sun position
+    this.directionalLight = new THREE.DirectionalLight(0xfff2cf, 1);
+    this.directionalLight.position.set(18, 28, 12);
     this.directionalLight.castShadow = true;
-    // Reduced shadow map resolution for better performance
-    this.directionalLight.shadow.mapSize.width = 1024;
-    this.directionalLight.shadow.mapSize.height = 1024;
+    this.directionalLight.shadow.mapSize.width = GAME_CONFIG.PERFORMANCE.SHADOW_MAP_SIZE;
+    this.directionalLight.shadow.mapSize.height = GAME_CONFIG.PERFORMANCE.SHADOW_MAP_SIZE;
     this.directionalLight.shadow.camera.near = 0.5;
-    this.directionalLight.shadow.camera.far = 50;
-    this.directionalLight.shadow.camera.left = -20;
-    this.directionalLight.shadow.camera.right = 20;
-    this.directionalLight.shadow.camera.top = 20;
-    this.directionalLight.shadow.camera.bottom = -20;
-    // Use cheaper shadow type for better performance
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.directionalLight.shadow.camera.far = 60;
+    this.directionalLight.shadow.camera.left = -18;
+    this.directionalLight.shadow.camera.right = 18;
+    this.directionalLight.shadow.camera.top = 18;
+    this.directionalLight.shadow.camera.bottom = -18;
     this.scene.add(this.directionalLight);
 
     // Handle window resize
@@ -91,4 +90,3 @@ export class SceneManager {
     return light;
   }
 }
-
