@@ -1,16 +1,20 @@
 import { defineConfig } from 'vite';
 
-const productionBase = process.env.BLOCKBLASTER_BASE ?? '/BlockBlaster/';
-
 export default defineConfig(({ command }) => ({
-  base: command === 'serve' ? '/' : productionBase,
+  base: command === 'serve' ? '/' : './',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
     minify: 'esbuild',
     rollupOptions: {
+      input: {
+        index: new URL('./src/main.ts', import.meta.url).pathname
+      },
       output: {
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name][extname]',
         manualChunks: {
           'three': ['three']
         }
